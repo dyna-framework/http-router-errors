@@ -1,12 +1,14 @@
 import { BaseInitializer } from '@dyna/core'
-import { ErrorHandler, ErrorHandlerFn, Response } from '@dyna/http-router'
+import { ErrorHandler, HttpError, Response, HttpError500 } from '@dyna/http-router'
 import { IncomingMessage, ServerResponse } from 'http'
+import Youch from 'youch'
+import PrettyError from 'pretty-error'
 
 /**
  * Register error handler initializer
  */
 export class RegisterErrorHandlerInitializer extends BaseInitializer {
-  async register() {
+  async boot() {
     if (this.app) {
       const handler = this.app.ex.httpRouterErrorHandler as ErrorHandler
 
@@ -15,6 +17,24 @@ export class RegisterErrorHandlerInitializer extends BaseInitializer {
   }
 
   async handler(err: unknown, req: IncomingMessage, res: ServerResponse) {
-    return new Response()
+    if (err) {
+      const error = err instanceof HttpError500 ? err.err : err
+
+      const terminal = new PrettyError()
+      const rendered = terminal.render(error as any)
+
+      console.error(rendered)
+
+      const response = new Response()
+      const youch = new Youch(error, req)
+      const html = await youch.toHTML()
+
+      response.html(html)
+      response.status(err instanceof HttpError ? err.statusCode : 200)
+
+      return response
+    }
+
+    return null
   }
 }
