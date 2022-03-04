@@ -9,26 +9,27 @@ import PrettyError from 'pretty-error'
  */
 export class RegisterErrorHandlerInitializer extends BaseInitializer {
   async boot() {
-    if (this.app) {
+    if (this.app?.ex?.httpRouterErrorHandler) {
+      // Register handler
       const handler = this.app.ex.httpRouterErrorHandler as ErrorHandler
-
       handler.register(this.handler.bind(this))
     }
   }
 
   async handler(err: unknown, req: IncomingMessage, res: ServerResponse) {
     if (err) {
+      // Get error (real stack)
       const error = err instanceof HttpError500 ? err.err : err
 
+      // Error to terminal
       const terminal = new PrettyError()
       const rendered = terminal.render(error as any)
-
       console.error(rendered)
 
+      // Error to browser
       const response = new Response()
       const youch = new Youch(error, req)
       const html = await youch.toHTML()
-
       response.html(html)
       response.status(err instanceof HttpError ? err.statusCode : 200)
 
